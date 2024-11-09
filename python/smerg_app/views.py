@@ -279,6 +279,7 @@ class BusinessList(APIView):
                     serializer = SaleProfilesSerial(SaleProfiles.objects.filter(entity_type='business', user=user, block=False).order_by('-id'), many=True)
                 return Response(serializer.data)
             return Response({'status':False,'message': 'User doesnot exist'})
+        
         return Response({'status':False,'message': 'Token is not passed'})
 
     @swagger_auto_schema(
@@ -1017,9 +1018,9 @@ class Graph(APIView):
     def get(self,request):
         if request.headers.get('token'):
             if UserProfile.objects.filter(auth_token=request.headers.get('token')).exists() and not UserProfile.objects.get(auth_token=request.headers.get('token')).block:
-                businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
-                investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
-                franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+                businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month","total_rate")[:5]
+                investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month","total_rate")[:5]
+                franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month","total_rate")[:5]
                 investAmount=0
                 totalAmount = 0
                 for i in investorData:
@@ -1034,8 +1035,25 @@ class Graph(APIView):
                 totalAmount += investAmount
                 return Response({"business":businessData,"investor":investorData,"franchise":franchiseData,"total":totalAmount,"invest":investAmount})
             return Response({'status':False,'message': 'User doesnot exist'})
-        return Response({'status':False,'message': 'Token is not passed'})
+        else:
+            businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+            investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+            franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+            investAmount=0
+            totalAmount = 0
+            for i in investorData:
+                if i['total_rate'] != None:
+                    investAmount += int(i['total_rate'])
+            for i in businessData:
+                if i['total_rate'] != None:
+                    totalAmount += int(i['total_rate'])
+            for i in investorData:
+                if i['total_rate'] != None:
+                    totalAmount += int(i['total_rate'])
+            totalAmount += investAmount
+            return Response({"business":businessData,"investor":investorData,"franchise":franchiseData,"total":totalAmount,"invest":investAmount})
 
+        
 # Contact Us
 class Contact(APIView):   
     @swagger_auto_schema(operation_description="Business creation",request_body=ContactSerial,
@@ -1083,14 +1101,14 @@ class Popularsearch(APIView):
         token = request.headers.get('token')
         if not token:
             return Response({'status': False, 'message': 'Token is not passed'}, status=status.HTTP_400_BAD_REQUEST)
-
         user = UserProfile.objects.filter(auth_token=token, block=False).first()
         if not user:
             return Response({'status': False, 'message': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
-
         popular_searches = Activity.objects.order_by('-count')[:10]
+        if not popular_searches:
+            return Response({'status': True, 'message': 'No popular searches found'}, status=status.HTTP_200_OK)
         serializer = ActivitySerial(popular_searches, many=True)
-        return Response({'status': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data)
 
     @swagger_auto_schema(operation_description="Record or increment count of a searched item",
                          request_body=ActivitySerial,
@@ -1151,8 +1169,12 @@ class RecentSearchview(APIView):
             return Response({'status': False, 'message': 'User does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
         recent_views = Activity.objects.filter(user=user).order_by('-created')[:10]
+        if not recent_views:
+            return Response({'status': True, 'message': 'No recent activity found'}, status=status.HTTP_200_OK)
+
         serializer = ActivitySerial(recent_views, many=True)
-        return Response({'status': True, 'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data)
+
 
     @swagger_auto_schema(operation_description="Record or increment count of a viewed item",
                          request_body=ActivitySerial, 

@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.db.models import Q
 from django.contrib.auth.decorators import user_passes_test
 from rest_framework.permissions import BasePermission
+from django.db.models.functions import ExtractMonth
 
 
 # Define standard status codes
@@ -1287,5 +1288,34 @@ class ChangePwd(APIView):
         user.set_password(password)
         user.save()
         return Response({'status':True})
+    
+
+
+class Graph(APIView):
+    @swagger_auto_schema(operation_description="Graph data fetching",
+    responses={200: "Graph Details fetched succesfully",400:"Passes an error message"})
+    def get(self,request):
+        if request.headers.get('token'):
+            if UserProfile.objects.filter(auth_token=request.headers.get('token')).exists() and not UserProfile.objects.get(auth_token=request.headers.get('token')).block:
+                businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+                investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+                franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+                investAmount=0
+                totalAmount = 0
+                for i in investorData:
+                    if i['total_rate'] != None:
+                        investAmount += int(i['total_rate'])
+                for i in businessData:
+                    if i['total_rate'] != None:
+                        totalAmount += int(i['total_rate'])
+                for i in investorData:
+                    if i['total_rate'] != None:
+                        totalAmount += int(i['total_rate'])
+                totalAmount += investAmount
+                return Response({"business":businessData,"investor":investorData,"franchise":franchiseData,"total":totalAmount,"invest":investAmount})
+            return Response({'status':False,'message': 'User doesnot exist'})
+        return Response({'status':False,'message': 'Token is not passed'})
+
+
     
 
