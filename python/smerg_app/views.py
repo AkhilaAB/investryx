@@ -642,7 +642,7 @@ class Search(APIView):
                     if request.GET.get('ebitda'):
                         query &= Q(ebitda__icontains=request.GET.get('ebitda'))
                     if request.GET.get('preference'):
-                        query &= Q(preference__icontains=request.GET.get('preference '))
+                        query &= Q(preference__contains=request.GET.get('preference '))
                     if request.GET.get('top_selling'):
                         query &= Q(top_selling__icontains=request.GET.get('top_selling'))
                     search = SaleProfiles.objects.filter(query)   
@@ -1016,42 +1016,22 @@ class Graph(APIView):
     @swagger_auto_schema(operation_description="Graph data fetching",
     responses={200: "Graph Details fetched succesfully",400:"Passes an error message"})
     def get(self,request):
-        if request.headers.get('token'):
-            if UserProfile.objects.filter(auth_token=request.headers.get('token')).exists() and not UserProfile.objects.get(auth_token=request.headers.get('token')).block:
-                businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month","total_rate")[:5]
-                investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month","total_rate")[:5]
-                franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month","total_rate")[:5]
-                investAmount=0
-                totalAmount = 0
-                for i in investorData:
-                    if i['total_rate'] != None:
-                        investAmount += int(i['total_rate'])
-                for i in businessData:
-                    if i['total_rate'] != None:
-                        totalAmount += int(i['total_rate'])
-                for i in investorData:
-                    if i['total_rate'] != None:
-                        totalAmount += int(i['total_rate'])
-                totalAmount += investAmount
-                return Response({"business":businessData,"investor":investorData,"franchise":franchiseData,"total":totalAmount,"invest":investAmount})
-            return Response({'status':False,'message': 'User doesnot exist'})
-        else:
-            businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
-            investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
-            franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
-            investAmount=0
-            totalAmount = 0
-            for i in investorData:
-                if i['total_rate'] != None:
-                    investAmount += int(i['total_rate'])
-            for i in businessData:
-                if i['total_rate'] != None:
-                    totalAmount += int(i['total_rate'])
-            for i in investorData:
-                if i['total_rate'] != None:
-                    totalAmount += int(i['total_rate'])
-            totalAmount += investAmount
-            return Response({"business":businessData,"investor":investorData,"franchise":franchiseData,"total":totalAmount,"invest":investAmount})
+        businessData = SaleProfiles.objects.filter(entity_type='business').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+        investorData = SaleProfiles.objects.filter(entity_type='investor').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+        franchiseData = SaleProfiles.objects.filter(entity_type='franchise').annotate(month=ExtractMonth("listed_on")).values("month").annotate(total_rate=Sum("range_starting")).values("month", "total_rate")[:5]
+        investAmount=0
+        totalAmount = 0
+        for i in investorData:
+            if i['total_rate'] != None:
+                investAmount += int(i['total_rate'])
+        for i in businessData:
+            if i['total_rate'] != None:
+                totalAmount += int(i['total_rate'])
+        for i in investorData:
+            if i['total_rate'] != None:
+                totalAmount += int(i['total_rate'])
+        totalAmount += investAmount
+        return Response({"business":businessData,"investor":investorData,"franchise":franchiseData,"total":totalAmount,"invest":investAmount})
 
         
 # Contact Us
@@ -1249,18 +1229,15 @@ class ReportPost(APIView):
 
     
         if SaleProfiles.objects.filter(id=report_id).exists():
-          
             report = Report(report_post=SaleProfiles.objects.get(id=report_id), reason=reason, reason_type=reason_type, reported_by=user, report_type='post')
             report.save()
             return Response({'status': True, 'message': 'Post reported successfully'}, status=status.HTTP_200_OK)
 
        
-        if Profile.objects.filter(id=report_id).exists():
-          
+        if Profile.objects.filter(id=report_id).exists():  
             report = Report(reported_profile=Profile.objects.get(id=report_id), reason=reason, reason_type=reason_type, reported_by=user, report_type='profile')
             report.save()
             return Response({'status': True, 'message':'Profile reported successfully'}, status=status.HTTP_200_OK)
-
         return Response({'status': False, 'message': 'Post or Profile does not exist'}, status=status.HTTP_404_NOT_FOUND)
 
 class RecentEnquiries(APIView):
@@ -1317,7 +1294,7 @@ class EnquiriesCounts(APIView):
                 # Check if the user has added any posts
                 user_posts = SaleProfiles.objects.filter(user=user)
                 if not user_posts.exists():
-                    return Response({'status': False, 'message': 'User has not added any posts'})
+                    return Response({'status': False, 'message':'User has not added any posts'})
 
                 today = timezone.now().date()
                 yesterday = today - timedelta(days=1)
@@ -1347,3 +1324,7 @@ class EnquiriesCounts(APIView):
             except UserProfile.DoesNotExist:
                 return Response({'status': False, 'message': 'User does not exist'})
         return Response({'status': False, 'message': 'Token is not passed'})
+
+
+
+

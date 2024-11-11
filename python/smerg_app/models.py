@@ -258,7 +258,7 @@ class Subscription(models.Model):
 class Notification(models.Model):
     user = models.ManyToManyField(UserProfile, related_name='notifications')
     title =  models.CharField(max_length=100)
-    description = models.TextField()
+    description = models.TextField()    
     image = models.FileField(upload_to='notification/image',null=True,blank=True)
     url = models.URLField(max_length=200,null=True,blank=True)
     created_on = models.DateField(auto_now=True)
